@@ -1,0 +1,12 @@
+dist: trusty
+language: elixir
+matrix:
+  include:
+    - elixir:  1.8
+      otp_release: 21.3
+    - elixir:  1.7
+      otp_release: 21.3
+script:
+  - mix credo --strict
+  - mix format --check-formatted
+  - mix test
