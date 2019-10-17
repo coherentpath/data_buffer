@@ -1,5 +1,5 @@
 defmodule DataBufferTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   defmodule TestBufferOne do
     use DataBuffer, interval: 1_000
@@ -40,6 +40,15 @@ defmodule DataBufferTest do
     def handle_flush(key, _count) do
       send(:data_buffer_test, {key, :os.system_time(:millisecond)})
       :error
+    end
+  end
+
+  defmodule TestBufferEight do
+    use DataBuffer, max_size: 1, interval: 60_000
+
+    def handle_flush(key, count) do
+      send(:data_buffer_test, {key, count})
+      :ok
     end
   end
 
@@ -126,6 +135,7 @@ defmodule DataBufferTest do
       TestBufferThree.insert("foo", "bar")
       TestBufferThree.insert("foo", "bar")
       :timer.sleep(200)
+
       assert_receive({"foo", ["bar", "bar"]})
     end
 
@@ -135,7 +145,16 @@ defmodule DataBufferTest do
       :timer.sleep(200)
       pid = Process.whereis(TestBufferFour)
       info = Process.info(pid)
+
       assert info[:current_function] == {:erlang, :hibernate, 3}
+    end
+
+    test "will cause the worker to flush if the key hits max_size" do
+      start_supervised(TestBufferEight)
+      Process.register(self(), :data_buffer_test)
+      TestBufferEight.insert("foo", "foo")
+
+      assert_receive({"foo", ["foo"]})
     end
 
     @tag capture_log: true

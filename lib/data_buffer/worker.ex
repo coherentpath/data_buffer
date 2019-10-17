@@ -19,36 +19,30 @@ defmodule DataBuffer.Worker do
     }
   end
 
-  @doc """
-  Starts a buffer worker process.
-  """
   @spec start_link(buffer :: DataBuffer.t(), keyword()) :: GenServer.on_start()
   def start_link(buffer, opts) do
     GenServer.start_link(__MODULE__, {buffer, opts}, name: buffer)
   end
 
-  @doc """
-  Increments a buffers key by the provided count.
-  """
-  @spec insert(buffer :: DataBuffer.t(), key :: any(), val :: any(), partitions :: integer()) ::
+  @spec insert(
+          buffer :: DataBuffer.t(),
+          key :: any(),
+          val :: any(),
+          partitions :: integer(),
+          max_size :: integer() | :infinity
+        ) ::
           :ok | :error
-  def insert(buffer, key, val, partitions) do
-    do_insert(buffer, key, val, partitions)
+  def insert(buffer, key, val, partitions, max_size) do
+    do_insert(buffer, key, val, partitions, max_size)
   rescue
     ArgumentError -> :error
   end
 
-  @doc """
-  Asynchronously flushes a buffers key.
-  """
   @spec flush(buffer :: DataBuffer.t(), key :: any()) :: :ok
   def flush(buffer, key) do
     GenServer.call(buffer, {:flush, key})
   end
 
-  @doc """
-  Returns the current count of a buffers key.
-  """
   @spec count(buffer :: DataBuffer.t(), key :: any(), partitions :: integer()) :: integer() | nil
   def count(buffer, key, partitions) do
     do_count(buffer, key, partitions)
@@ -58,7 +52,6 @@ defmodule DataBuffer.Worker do
   # GenServer Callbacks
   ################################
 
-  @doc false
   @impl GenServer
   def init({buffer, opts}) do
     state = do_state(buffer, opts)
@@ -67,21 +60,18 @@ defmodule DataBuffer.Worker do
     {:ok, state, state.timeout()}
   end
 
-  @doc false
   @impl GenServer
   def handle_call({:flush, key}, _from, state) do
     do_flush(state, key)
     {:reply, :ok, state, state.timeout()}
   end
 
-  @doc false
   @impl GenServer
   def handle_cast({:schedule_flush, key}, state) do
     do_schedule_flush(state, key)
     {:noreply, state, state.timeout()}
   end
 
-  @doc false
   @impl GenServer
   def handle_info({:flush, key}, state) do
     do_flush(state, key)
@@ -112,16 +102,18 @@ defmodule DataBuffer.Worker do
     end
   end
 
-  defp do_insert(buffer, key, val, partitions) do
+  defp do_insert(buffer, key, val, partitions, max_size) do
     partition = get_partition(key, partitions)
     buffer_table = Tables.name(:buffer, buffer, partition)
     counter_table = Tables.name(:counter, buffer, partition)
-
-    if :ets.update_counter(counter_table, key, 1, {0, 0}) == 1 do
-      GenServer.cast(buffer, {:schedule_flush, key})
-    end
-
+    count = :ets.update_counter(counter_table, key, 1, {0, 0})
     :ets.insert(buffer_table, {key, val})
+
+    cond do
+      count >= max_size -> GenServer.call(buffer, {:flush, key})
+      count == 1 -> GenServer.cast(buffer, {:schedule_flush, key})
+      true -> :ok
+    end
 
     :ok
   end

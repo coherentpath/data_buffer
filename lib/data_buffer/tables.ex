@@ -8,6 +8,10 @@ defmodule DataBuffer.Tables do
     read_concurrency: true
   ]
 
+  ################################
+  # Public API
+  ################################
+
   @spec name(:buffer | :counter, atom(), integer()) :: atom()
   def name(:buffer, name, partition), do: :"#{name}.#{partition}"
   def name(:counter, name, partition), do: :"#{name}.Counter.#{partition}"
@@ -22,6 +26,10 @@ defmodule DataBuffer.Tables do
     name = name(:counter, name, p)
     init_table(name, :set)
   end
+
+  ################################
+  # Private API
+  ################################
 
   defp init_table(name, type) do
     opts = [type | @default_opts]

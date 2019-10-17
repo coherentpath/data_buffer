@@ -12,6 +12,7 @@ defmodule DataBuffer.FlusherSupervisor do
     DynamicSupervisor.start_link(__MODULE__, [], name: name(buffer))
   end
 
+  @doc false
   def start_flusher(buffer, key, p, opts \\ []) do
     buffer
     |> name()
@@ -22,7 +23,6 @@ defmodule DataBuffer.FlusherSupervisor do
   # DynamicSupervisor Callbacks
   ################################
 
-  @doc false
   @impl DynamicSupervisor
   def init(_arg) do
     DynamicSupervisor.init(strategy: :one_for_one)

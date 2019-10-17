@@ -61,6 +61,8 @@ defmodule DataBuffer do
 
     * `:partitions` - The number of table partitions to use for the buffer - defaults
       to `1`.
+    * `:max_size` - The max number of values allowed under a given key before a
+      flush is invoked - defaults to `:infinity`.
     * `:interval` - The time in milliseconds between the first insert for a
       given key and its next flush callback being invoked. Defaults to `5_000`.
     * `:jitter` - A max time in milliseconds that will be added to `interval` to
@@ -141,7 +143,9 @@ defmodule DataBuffer do
 
   @type t :: module
   @type option ::
-          {:interval, non_neg_integer()}
+          {:partitions, non_neg_integer()}
+          | {:max_size, non_neg_integer() | :infinity}
+          | {:interval, non_neg_integer()}
           | {:jitter, non_neg_integer()}
           | {:timeout, non_neg_integer()}
           | {:partitions, non_neg_integer()}
@@ -155,6 +159,7 @@ defmodule DataBuffer do
 
       default_opts = [
         partitions: 1,
+        max_size: :infinity,
         interval: 5_000,
         jitter: 0,
         timeout: 10_000,
@@ -166,6 +171,7 @@ defmodule DataBuffer do
 
       @opts default_opts |> Keyword.merge(opts) |> Keyword.take(opt_keys)
       @partitions Keyword.get(@opts, :partitions) - 1
+      @max_size Keyword.get(@opts, :max_size)
 
       @impl DataBuffer
       def start_link(opts \\ []) do
@@ -193,7 +199,7 @@ defmodule DataBuffer do
 
       @impl DataBuffer
       def insert(key, val) do
-        DataBuffer.Worker.insert(__MODULE__, key, val, @partitions)
+        DataBuffer.Worker.insert(__MODULE__, key, val, @partitions, @max_size)
       end
 
       @impl DataBuffer

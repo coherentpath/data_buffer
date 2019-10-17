@@ -1,4 +1,4 @@
-# StatBuffer
+# DataBuffer
 
 [![Build Status](https://travis-ci.org/nsweeting/data_buffer.svg?branch=master)](https://travis-ci.org/nsweeting/data_buffer)
 [![DataBuffer Version](https://img.shields.io/hexpm/v/data_buffer.svg)](https://hex.pm/packages/data_buffer)

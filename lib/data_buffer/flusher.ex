@@ -38,6 +38,10 @@ defmodule DataBuffer.Flusher do
     end
   end
 
+  ################################
+  # Private API
+  ################################
+
   defp do_run(buffer, key, data, retry) do
     do_flush(buffer, key, data)
   rescue

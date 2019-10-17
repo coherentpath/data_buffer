@@ -16,8 +16,7 @@ defmodule DataBuffer.Supervisor do
   # Supervisor Callbacks
   ################################
 
-  @doc false
-  @impl true
+  @impl Supervisor
   def init({buffer, opts}) do
     children = [
       {DataBuffer.FlusherSupervisor, buffer},
