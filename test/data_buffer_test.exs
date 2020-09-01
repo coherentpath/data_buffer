@@ -47,6 +47,17 @@ defmodule DataBufferTest do
       assert_receive {:data, ["foo"]}
       assert_receive {:data, ["foo"]}
     end
+
+    test "will flush after hitting max_size + max_size_jitter" do
+      start_buffer(max_size: 0, max_size_jitter: 1)
+      assert [] = DataBuffer.dump(TestBuffer)
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.insert(TestBuffer, "foo")
+      assert_receive {:data, ["foo"]}
+      assert_receive {:data, ["foo"]}
+    end
   end
 
   describe "flush/2" do

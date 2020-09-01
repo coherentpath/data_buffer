@@ -13,6 +13,7 @@ defmodule DataBuffer.Partition do
     name: [type: :atom, required: true],
     buffer: [type: :module, required: true],
     max_size: [type: :integer, default: 5_000, required: true],
+    max_size_jitter: [type: :integer, default: 0, required: true],
     flush_interval: [type: :integer, default: 10_000, required: true],
     flush_jitter: [type: :integer, default: 2_000, required: true],
     flush_meta: [type: :any, required: false],
@@ -141,6 +142,8 @@ defmodule DataBuffer.Partition do
       name: Keyword.get(opts, :name),
       buffer: Keyword.get(opts, :buffer),
       max_size: Keyword.get(opts, :max_size),
+      max_size_jitter: Keyword.get(opts, :max_size_jitter),
+      flush_size: 0,
       flush_interval: Keyword.get(opts, :flush_interval),
       flush_jitter: Keyword.get(opts, :flush_jitter),
       flush_timeout: Keyword.get(opts, :flush_timeout),
@@ -157,27 +160,28 @@ defmodule DataBuffer.Partition do
 
   defp init_table(state) do
     table = :ets.new(:partition, [:private, :set])
-    %{state | table: table, size: 0}
+    flush_size = state.max_size + Enum.random(0..state.max_size_jitter)
+    %{state | table: table, size: 0, flush_size: flush_size}
   end
 
   defp schedule_flush(state) do
     if is_reference(state.flush_ref), do: Process.cancel_timer(state.flush_ref)
-    time = state.flush_interval + :random.uniform(state.flush_jitter)
+    time = state.flush_interval + Enum.random(0..state.flush_jitter)
     flush_ref = Process.send_after(self(), :flush, time)
     %{state | flush_ref: flush_ref}
   end
 
-  defguardp is_full(size, max_size) when size >= max_size
+  defguardp is_full(size, flush_size) when size >= flush_size
 
-  defp do_insert(%{flusher: flusher, size: size, max_size: max_size} = state, data)
-       when is_pid(flusher) and is_full(size, max_size) do
+  defp do_insert(%{flusher: flusher, size: size, flush_size: flush_size} = state, data)
+       when is_pid(flusher) and is_full(size, flush_size) do
     state
     |> do_await_flush()
     |> do_insert(data)
   end
 
-  defp do_insert(%{size: size, max_size: max_size} = state, data)
-       when is_full(size, max_size) do
+  defp do_insert(%{size: size, flush_size: flush_size} = state, data)
+       when is_full(size, flush_size) do
     state
     |> do_flush()
     |> do_insert(data)
