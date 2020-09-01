@@ -20,28 +20,33 @@ defmodule DataBuffer do
     Supervisor.start_link(__MODULE__, {buffer, opts}, name: buffer)
   end
 
-  @spec insert(DataBuffer.t(), any()) :: :ok
-  def insert(buffer, data) do
-    buffer |> PartitionPool.get() |> Partition.insert(data)
+  @spec insert(DataBuffer.t(), any(), timeout()) :: :ok
+  def insert(buffer, data, timeout \\ 5_000) do
+    buffer
+    |> PartitionPool.get()
+    |> Partition.insert(data, timeout)
   end
 
-  @spec flush(DataBuffer.t()) :: :ok
-  def flush(buffer) do
-    for partition <- PartitionPool.all(buffer), do: Partition.flush(partition)
+  @spec flush(DataBuffer.t(), timeout()) :: :ok
+  def flush(buffer, timeout \\ 5_000) do
+    for partition <- PartitionPool.all(buffer) do
+      Partition.flush(partition, timeout)
+    end
+
     :ok
   end
 
-  @spec dump(DataBuffer.t()) :: :ok
-  def dump(buffer) do
+  @spec dump(DataBuffer.t(), timeout()) :: :ok
+  def dump(buffer, timeout \\ 5_000) do
     for partition <- PartitionPool.all(buffer), reduce: [] do
-      data -> data ++ Partition.dump(partition)
+      data -> data ++ Partition.dump(partition, timeout)
     end
   end
 
-  @spec size(DataBuffer.t()) :: integer()
-  def size(buffer) do
+  @spec size(DataBuffer.t(), timeout()) :: integer()
+  def size(buffer, timeout \\ 5_000) do
     for partition <- PartitionPool.all(buffer), reduce: 0 do
-      size -> size + Partition.size(partition)
+      size -> size + Partition.size(partition, timeout)
     end
   end
 

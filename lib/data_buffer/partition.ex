@@ -40,28 +40,28 @@ defmodule DataBuffer.Partition do
   end
 
   @spec flush(partition()) :: :ok
-  def flush(partition) do
-    GenServer.call(partition, :flush)
+  def flush(partition, timeout \\ 5_000) do
+    GenServer.call(partition, :flush, timeout)
   end
 
   @spec sync_flush(partition()) :: :ok
-  def sync_flush(partition) do
-    GenServer.call(partition, :sync_flush)
+  def sync_flush(partition, timeout \\ 5_000) do
+    GenServer.call(partition, :sync_flush, timeout)
   end
 
   @spec dump(partition()) :: :ok
-  def dump(partition) do
-    GenServer.call(partition, :dump)
+  def dump(partition, timeout \\ 5_000) do
+    GenServer.call(partition, :dump, timeout)
   end
 
-  @spec insert(partition(), any()) :: :ok
-  def insert(partition, data) do
-    GenServer.call(partition, {:insert, data})
+  @spec insert(partition(), any(), timeout()) :: :ok
+  def insert(partition, data, timeout \\ 5_000) do
+    GenServer.call(partition, {:insert, data}, timeout)
   end
 
   @spec size(partition()) :: integer()
-  def size(partition) do
-    GenServer.call(partition, :size)
+  def size(partition, timeout \\ 5_000) do
+    GenServer.call(partition, :size, timeout)
   end
 
   ################################
