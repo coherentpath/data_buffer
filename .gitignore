@@ -24,3 +24,5 @@ data_buffer-*.tar
 
 # Ignore Elixir Language Server files
 /.elixir_ls
+
+/bench

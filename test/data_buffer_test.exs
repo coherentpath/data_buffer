@@ -1,214 +1,119 @@
 defmodule DataBufferTest do
   use ExUnit.Case, async: false
 
-  defmodule TestBufferOne do
-    use DataBuffer, interval: 1_000
-  end
+  @partitions 2
 
-  defmodule TestBufferTwo do
-    use DataBuffer, interval: 1_000
-  end
-
-  defmodule TestBufferThree do
-    use DataBuffer, interval: 100
-
-    def handle_flush(key, data) do
-      send(:data_buffer_test, {key, data})
-    end
-  end
-
-  defmodule TestBufferFour do
-    use DataBuffer, timeout: 100
-  end
-
-  defmodule TestBufferFive do
+  defmodule TestBuffer do
     use DataBuffer
-  end
 
-  defmodule TestBufferSix do
-    use DataBuffer, interval: 0, retry_delay: 0, retry_max: 5
-
-    def handle_flush(key, count) do
-      send(:data_buffer_test, {key, count})
-      raise "error"
+    def start_link(opts) do
+      DataBuffer.start_link(__MODULE__, opts)
     end
-  end
 
-  defmodule TestBufferSeven do
-    use DataBuffer, interval: 0, retry_delay: 200, retry_max: 5
-
-    def handle_flush(key, _count) do
-      send(:data_buffer_test, {key, :os.system_time(:millisecond)})
-      :error
-    end
-  end
-
-  defmodule TestBufferEight do
-    use DataBuffer, max_size: 1, interval: 60_000
-
-    def handle_flush(key, count) do
-      send(:data_buffer_test, {key, count})
-      :ok
+    @impl DataBuffer
+    def handle_flush(data_stream, meta) do
+      data = Enum.into(data_stream, [])
+      send(meta.pid, {:data, data})
     end
   end
 
   describe "insert/2" do
-    test "accepts a binary as a key" do
-      start_supervised(TestBufferOne)
-      TestBufferOne.insert("foo", "bar")
-      assert_key_exists(TestBufferOne, "foo")
+    test "inserts data into the buffer" do
+      start_buffer()
+
+      assert [] = DataBuffer.dump(TestBuffer)
+      DataBuffer.insert(TestBuffer, "foo")
+      assert [{_, "foo"}] = DataBuffer.dump(TestBuffer)
     end
 
-    test "accepts a tuple as a key" do
-      start_supervised(TestBufferOne)
-      TestBufferOne.insert({"foo", "bar"}, "foo")
-      assert_key_exists(TestBufferOne, {"foo", "bar"})
-    end
+    test "inserts duplicate data into the buffer" do
+      start_buffer()
+      assert [] = DataBuffer.dump(TestBuffer)
 
-    test "accepts an integer as a key" do
-      start_supervised(TestBufferOne)
-      TestBufferOne.insert(1, "foo")
-      assert_key_exists(TestBufferOne, 1)
-    end
-
-    test "accepts an atom as a key" do
-      start_supervised(TestBufferOne)
-      TestBufferOne.insert(:foo, "foo")
-      assert_key_exists(TestBufferOne, :foo)
-    end
-
-    test "maintains a proper count for a single key" do
-      start_supervised(TestBufferOne)
-      TestBufferOne.insert("foo", "foo")
-      TestBufferOne.insert("foo", "foo")
-      TestBufferOne.insert("foo", "foo")
-      assert_key_count(TestBufferOne, "foo", 3)
-    end
-
-    test "data returned is a list of values without keys" do
-      start_supervised(TestBufferThree)
-      Process.register(self(), :data_buffer_test)
-
-      for _ <- 1..10 do
-        spawn(fn -> TestBufferThree.insert("foo", "foo") end)
+      for _ <- 1..500 do
+        DataBuffer.insert(TestBuffer, "foo")
       end
 
-      :timer.sleep(200)
-
-      assert_receive({"foo", data})
-      assert Enum.count(data) == 10
-
-      Enum.each(data, fn item ->
-        assert item == "foo"
-      end)
+      assert length(DataBuffer.dump(TestBuffer)) == 500
     end
 
-    test "maintains a proper count for a single key with concurrency" do
-      start_supervised(TestBufferOne)
+    test "will flush after hitting max_size" do
+      start_buffer(max_size: 1)
+      assert [] = DataBuffer.dump(TestBuffer)
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.insert(TestBuffer, "foo")
+      assert_receive {:data, ["foo"]}
+      assert_receive {:data, ["foo"]}
+    end
+  end
+
+  describe "flush/2" do
+    test "flushes data from the buffer" do
+      start_buffer()
+
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.flush(TestBuffer)
+
+      assert_receive {:data, ["foo"]}
+    end
+
+    test "flushes duplicate data from the buffer" do
+      start_buffer()
+
+      for _ <- 1..500 do
+        DataBuffer.insert(TestBuffer, "foo")
+      end
+
+      DataBuffer.flush(TestBuffer)
+      data = receive_all()
+
+      assert length(data) == 500
+    end
+  end
+
+  describe "size/1" do
+    test "returns the correct size" do
+      start_buffer(max_size: 50_000)
 
       for _ <- 1..10_000 do
-        spawn(fn -> TestBufferOne.insert("foo", "foo") end)
-        spawn(fn -> TestBufferOne.insert("bar", "bar") end)
+        spawn(fn -> DataBuffer.insert(TestBuffer, "foo") end)
+        spawn(fn -> DataBuffer.insert(TestBuffer, "bar") end)
       end
 
-      await_count(TestBufferOne, "foo", 10_000)
-      await_count(TestBufferOne, "bar", 10_000)
+      await_size(20_000)
 
-      assert_key_count(TestBufferOne, "foo", 10_000)
-      assert_key_count(TestBufferOne, "bar", 10_000)
-    end
-
-    test "does not mix keys from different buffers" do
-      start_supervised(TestBufferOne)
-      start_supervised(TestBufferTwo)
-
-      TestBufferOne.insert("foo", "foo")
-      assert_key_count(TestBufferOne, "foo", 1)
-
-      TestBufferTwo.insert("foo", "foo")
-      assert_key_count(TestBufferTwo, "foo", 1)
-    end
-
-    test "will cause a flush after the specified interval" do
-      start_supervised(TestBufferThree)
-      Process.register(self(), :data_buffer_test)
-      TestBufferThree.insert("foo", "bar")
-      TestBufferThree.insert("foo", "bar")
-      :timer.sleep(200)
-
-      assert_receive({"foo", ["bar", "bar"]})
-    end
-
-    test "will cause the worker to hibernate after the specified timeout" do
-      start_supervised(TestBufferFour)
-      TestBufferFour.insert("foo", "foo")
-      :timer.sleep(200)
-      pid = Process.whereis(TestBufferFour)
-      info = Process.info(pid)
-
-      assert info[:current_function] == {:erlang, :hibernate, 3}
-    end
-
-    test "will cause the worker to flush if the key hits max_size" do
-      start_supervised(TestBufferEight)
-      Process.register(self(), :data_buffer_test)
-      TestBufferEight.insert("foo", "foo")
-
-      assert_receive({"foo", ["foo"]})
-    end
-
-    @tag capture_log: true
-    test "will return :error if the process isnt alive" do
-      assert :error = TestBufferFive.insert("foo", "foo")
-    end
-
-    @tag capture_log: true
-    test "will retry failed flush operations" do
-      start_supervised(TestBufferSix)
-      Process.register(self(), :data_buffer_test)
-      TestBufferSix.insert("foo", "foo")
-
-      :timer.sleep(100)
-
-      assert_receive({"foo", ["foo"]})
-      assert_receive({"foo", ["foo"]})
-      assert_receive({"foo", ["foo"]})
-      assert_receive({"foo", ["foo"]})
-      assert_receive({"foo", ["foo"]})
-      refute_receive({"foo", ["foo"]})
-    end
-
-    @tag capture_log: true
-    test "will retry with backoff flush operations that dont return :ok " do
-      start_supervised(TestBufferSeven)
-      Process.register(self(), :data_buffer_test)
-      TestBufferSeven.insert("foo", "foo")
-
-      :timer.sleep(100)
-
-      assert_receive({"foo", time1}, 500)
-      assert_receive({"foo", time2}, 500)
-      assert time2 - time1 > 200
-      assert_receive({"foo", time1}, 500)
-      assert_receive({"foo", time2}, 500)
-      assert time2 - time1 > 200
+      assert DataBuffer.size(TestBuffer) == 20_000
     end
   end
 
-  def assert_key_exists(buffer, key) do
-    assert buffer.count(key) |> is_integer()
+  test "flushes data after flush_interval and flush_jitter" do
+    start_buffer(flush_interval: 50, flush_jitter: 1)
+    DataBuffer.insert(TestBuffer, "foo")
+    assert_receive {:data, ["foo"]}, 150
   end
 
-  def assert_key_count(buffer, key, count) do
-    assert buffer.count(key) == count
+  defp start_buffer(opts \\ []) do
+    default_opts = [flush_meta: %{pid: self()}, partitions: @partitions]
+    opts = Keyword.merge(default_opts, opts)
+    start_supervised({TestBuffer, opts})
   end
 
-  def await_count(buffer, key, count) do
+  defp receive_all do
+    for _ <- 1..@partitions, reduce: [] do
+      data ->
+        assert_receive {:data, new_data}
+        data ++ new_data
+    end
+  end
+
+  def await_size(size) do
     :timer.sleep(10)
 
-    case buffer.count(key) do
-      ^count -> :ok
-      _ -> await_count(buffer, key, count)
+    case DataBuffer.size(TestBuffer) do
+      ^size -> :ok
+      _ -> await_size(size)
     end
   end
 end

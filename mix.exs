@@ -1,13 +1,13 @@
 defmodule DataBuffer.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.2.0"
 
   def project do
     [
       app: :data_buffer,
       version: @version,
-      elixir: "~> 1.7",
+      elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
@@ -26,8 +26,16 @@ defmodule DataBuffer.MixProject do
 
   defp description do
     """
-    DataBuffer provides an efficient way to maintain persistable key-based data lists.
+    DataBuffer provides an efficient way to buffer persistable data.
     """
+  end
+
+  defp docs do
+    [
+      extras: ["README.md"],
+      main: "readme",
+      source_url: "https://github.com/nsweeting/data_buffer"
+    ]
   end
 
   defp package do
@@ -39,20 +47,11 @@ defmodule DataBuffer.MixProject do
     ]
   end
 
-  defp docs do
-    [
-      extras: ["README.md"],
-      main: "readme",
-      source_url: "https://github.com/nsweeting/data_buffer"
-    ]
-  end
-
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, "~> 0.20", only: :dev, runtime: false},
-      {:benchee, "~> 1.0", only: :dev},
-      {:credo, "~> 1.1", only: [:dev, :test], runtime: false}
+      {:keyword_validator, "~> 1.0"},
+      {:benchee, "~> 1.0", only: :dev}
     ]
   end
 end
