@@ -36,6 +36,13 @@ defmodule DataBuffer do
     :ok
   end
 
+  @spec sync_flush(DataBuffer.t(), timeout()) :: :ok
+  def sync_flush(buffer, timeout \\ 5_000) do
+    for partition <- PartitionPool.all(buffer), reduce: [] do
+      results -> [Partition.sync_flush(partition, timeout) | results]
+    end
+  end
+
   @spec dump(DataBuffer.t(), timeout()) :: :ok
   def dump(buffer, timeout \\ 5_000) do
     for partition <- PartitionPool.all(buffer), reduce: [] do
