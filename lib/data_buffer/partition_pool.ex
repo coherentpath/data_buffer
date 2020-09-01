@@ -19,7 +19,7 @@ defmodule DataBuffer.PartitionPool do
     }
   end
 
-  @spec start_link(DataBuffer.buffer(), keyword()) :: Supervisor.on_start()
+  @spec start_link(DataBuffer.t(), keyword()) :: Supervisor.on_start()
   def start_link(buffer, opts) do
     name = partition_pool_name(buffer)
 
@@ -28,18 +28,18 @@ defmodule DataBuffer.PartitionPool do
     end
   end
 
-  @spec count(DataBuffer.buffer()) :: integer()
+  @spec count(DataBuffer.t()) :: integer()
   def count(buffer) do
     :persistent_term.get({buffer, :partitions})
   end
 
-  @spec get(DataBuffer.buffer()) :: atom()
+  @spec get(DataBuffer.t()) :: atom()
   def get(buffer) do
     parition = buffer |> count() |> :random.uniform()
     partition_name(buffer, parition)
   end
 
-  @spec all(DataBuffer.buffer()) :: [atom()]
+  @spec all(DataBuffer.t()) :: [atom()]
   def all(buffer) do
     for partition <- 1..count(buffer), reduce: [] do
       partitions -> [partition_name(buffer, partition) | partitions]

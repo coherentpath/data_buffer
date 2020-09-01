@@ -16,7 +16,7 @@ defmodule DataBuffer.Flusher do
     }
   end
 
-  @spec start_link(DataBuffer.buffer(), keyword()) :: GenServer.on_start()
+  @spec start_link(DataBuffer.t(), keyword()) :: GenServer.on_start()
   def start_link(buffer, opts \\ []) do
     GenServer.start_link(__MODULE__, {buffer, opts})
   end

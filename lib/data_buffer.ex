@@ -5,7 +5,7 @@ defmodule DataBuffer do
 
   use Supervisor
 
-  @type buffer :: module()
+  @type t :: module()
 
   @callback handle_flush(Enumerable.t(), meta :: any()) :: any()
 
