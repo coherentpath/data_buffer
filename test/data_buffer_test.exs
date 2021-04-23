@@ -1,6 +1,8 @@
 defmodule DataBufferTest do
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
+
   @partitions 2
 
   defmodule TestBuffer do
@@ -12,6 +14,9 @@ defmodule DataBufferTest do
 
     @impl DataBuffer
     def handle_flush(data_stream, meta) do
+      if Map.has_key?(meta, :sleep) do
+        :timer.sleep(meta.sleep)
+      end
       data = Enum.into(data_stream, [])
       send(meta.pid, {:data, data})
     end
@@ -105,8 +110,18 @@ defmodule DataBufferTest do
     assert_receive {:data, ["foo"]}, 150
   end
 
+  test "will handle an insert when waiting on a timeout" do
+    assert capture_log(fn ->
+      start_buffer(max_size: 1, partitions: 1, flush_timeout: 250, flush_meta: %{sleep: 500})
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.insert(TestBuffer, "foo")
+      DataBuffer.insert(TestBuffer, "foo")
+    end) =~ "DataBuffer: flush timeout error"
+  end
+
   defp start_buffer(opts \\ []) do
-    default_opts = [flush_meta: %{pid: self()}, partitions: @partitions]
+    {flush_meta, opts} = Keyword.pop(opts, :flush_meta, %{})
+    default_opts = [flush_meta: Map.merge(flush_meta, %{pid: self()}), partitions: @partitions]
     opts = Keyword.merge(default_opts, opts)
     start_supervised({TestBuffer, opts})
   end
