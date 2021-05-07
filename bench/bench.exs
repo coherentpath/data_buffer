@@ -3,7 +3,7 @@ defmodule Test do
     DataBuffer.start_link(__MODULE__, max_size: 10_000, partitions: 8)
   end
 
-  def handle_flush(data, _meta) do
+  def handle_flush(_data, _meta) do
     :ok
   end
 end

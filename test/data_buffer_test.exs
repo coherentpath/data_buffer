@@ -1,26 +1,8 @@
 defmodule DataBufferTest do
   use ExUnit.Case, async: false
 
+  import DataBuffer.Helpers
   import ExUnit.CaptureLog
-
-  @partitions 2
-
-  defmodule TestBuffer do
-    use DataBuffer
-
-    def start_link(opts) do
-      DataBuffer.start_link(__MODULE__, opts)
-    end
-
-    @impl DataBuffer
-    def handle_flush(data_stream, meta) do
-      if Map.has_key?(meta, :sleep) do
-        :timer.sleep(meta.sleep)
-      end
-      data = Enum.into(data_stream, [])
-      send(meta.pid, {:data, data})
-    end
-  end
 
   describe "insert/2" do
     test "inserts data into the buffer" do
@@ -87,6 +69,22 @@ defmodule DataBufferTest do
 
       assert length(data) == 500
     end
+
+    test "flushes in the order inserted" do
+      start_buffer(partitions: 1)
+
+      for x <- 0..500 do
+        DataBuffer.insert(TestBuffer, x)
+      end
+
+      DataBuffer.flush(TestBuffer)
+
+      assert_receive {:data, data}
+
+      for x <- 0..500 do
+        assert Enum.at(data, x) == x
+      end
+    end
   end
 
   describe "size/1" do
@@ -110,31 +108,58 @@ defmodule DataBufferTest do
     assert_receive {:data, ["foo"]}, 150
   end
 
+  test "handles flush attempts that raise an exception or exit" do
+    assert capture_log(fn ->
+             start_buffer(
+               buffer: TestErrorBuffer,
+               max_size: 1,
+               partitions: 1,
+               flush_meta: %{kind: :error}
+             )
+
+             DataBuffer.insert(TestErrorBuffer, "foo")
+             DataBuffer.insert(TestErrorBuffer, "foo")
+             stop_supervised!(TestErrorBuffer)
+           end) =~ "(RuntimeError) boom"
+
+    assert capture_log(fn ->
+             start_buffer(
+               buffer: TestErrorBuffer,
+               max_size: 1,
+               partitions: 1,
+               flush_meta: %{kind: :exit}
+             )
+
+             DataBuffer.insert(TestErrorBuffer, "foo")
+             DataBuffer.insert(TestErrorBuffer, "foo")
+             stop_supervised!(TestErrorBuffer)
+           end) =~ "(exit) \"boom\""
+  end
+
   test "will handle an insert when waiting on a timeout" do
     assert capture_log(fn ->
-      start_buffer(max_size: 1, partitions: 1, flush_timeout: 250, flush_meta: %{sleep: 500})
-      DataBuffer.insert(TestBuffer, "foo")
-      DataBuffer.insert(TestBuffer, "foo")
-      DataBuffer.insert(TestBuffer, "foo")
-    end) =~ "DataBuffer: flush timeout error"
+             start_buffer(
+               max_size: 1,
+               partitions: 1,
+               flush_timeout: 250,
+               flush_meta: %{sleep: 500}
+             )
+
+             DataBuffer.insert(TestBuffer, "foo")
+             DataBuffer.insert(TestBuffer, "foo")
+             DataBuffer.insert(TestBuffer, "foo")
+           end) =~ "DataBuffer: flush timeout error"
   end
 
-  defp start_buffer(opts \\ []) do
-    {flush_meta, opts} = Keyword.pop(opts, :flush_meta, %{})
-    default_opts = [flush_meta: Map.merge(flush_meta, %{pid: self()}), partitions: @partitions]
-    opts = Keyword.merge(default_opts, opts)
-    start_supervised({TestBuffer, opts})
-  end
-
-  defp receive_all do
-    for _ <- 1..@partitions, reduce: [] do
+  defp receive_all(partitions \\ partitions()) do
+    for _ <- 1..partitions, reduce: [] do
       data ->
         assert_receive {:data, new_data}
         data ++ new_data
     end
   end
 
-  def await_size(size) do
+  defp await_size(size) do
     :timer.sleep(10)
 
     case DataBuffer.size(TestBuffer) do

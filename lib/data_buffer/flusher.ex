@@ -3,6 +3,10 @@ defmodule DataBuffer.Flusher do
 
   use GenServer
 
+  require Logger
+
+  alias DataBuffer.Telemetry
+
   ################################
   # Public API
   ################################
@@ -21,7 +25,7 @@ defmodule DataBuffer.Flusher do
     GenServer.start_link(__MODULE__, {buffer, opts})
   end
 
-  @spec flush(:ets.tid(), atom(), keyword()) :: :ok
+  @spec flush(DataBuffer.Partition.table(), atom(), keyword()) :: {:ok, any()} | {:error, any()}
   def flush(table, buffer, opts \\ []) do
     meta = Keyword.get(opts, :meta)
     data = handle_data(table)
@@ -38,8 +42,16 @@ defmodule DataBuffer.Flusher do
   end
 
   @impl GenServer
-  def handle_info({:"ETS-TRANSFER", table, from, :ok}, {buffer, opts} = state) do
-    flush(table, buffer, opts)
+  def handle_info({:"ETS-TRANSFER", table, from, size}, {buffer, opts} = state) do
+    try do
+      Telemetry.span(:flush, %{buffer: buffer, size: size}, fn ->
+        flush(table, buffer, opts)
+        {:ok, %{buffer: buffer}}
+      end)
+    catch
+      kind, reason -> Logger.error(Exception.format(kind, reason, __STACKTRACE__))
+    end
+
     send(from, :flush_complete)
     {:stop, :normal, state}
   end
