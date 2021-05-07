@@ -9,25 +9,39 @@ defmodule DataBuffer do
 
   @callback handle_flush(Enumerable.t(), meta :: any()) :: any()
 
-  alias DataBuffer.{Partition, PartitionPool}
+  alias DataBuffer.{Partition, PartitionPool, Telemetry}
 
   ################################
   # Public API
   ################################
 
-  @spec start_link(DataBuffer.t(), keyword()) :: Supervisor.on_start()
+  @doc """
+  Starts the data buffer as a supervisor process.
+  """
+  @spec start_link(buffer :: DataBuffer.t(), keyword()) :: Supervisor.on_start()
   def start_link(buffer, opts) do
     Supervisor.start_link(__MODULE__, {buffer, opts}, name: buffer)
   end
 
-  @spec insert(DataBuffer.t(), any(), timeout()) :: :ok
+  @doc """
+  Inserts `data` into the provided `buffer`.
+  """
+  @spec insert(buffer :: DataBuffer.t(), data :: any(), timeout()) :: :ok
   def insert(buffer, data, timeout \\ 5_000) do
-    buffer
-    |> PartitionPool.get()
-    |> Partition.insert(data, timeout)
+    Telemetry.span(:insert, %{buffer: buffer}, fn ->
+      result =
+        buffer
+        |> PartitionPool.get()
+        |> Partition.insert(data, timeout)
+
+      {result, %{buffer: buffer}}
+    end)
   end
 
-  @spec flush(DataBuffer.t(), timeout()) :: :ok
+  @doc """
+  Performs a flush operation on the provided `buffer`.
+  """
+  @spec flush(buffer :: DataBuffer.t(), timeout()) :: :ok
   def flush(buffer, timeout \\ 5_000) do
     for partition <- PartitionPool.all(buffer) do
       Partition.flush(partition, timeout)
@@ -36,21 +50,30 @@ defmodule DataBuffer do
     :ok
   end
 
-  @spec sync_flush(DataBuffer.t(), timeout()) :: :ok
+  @doc """
+  Syncronously flushes the provided `buffer` - returning the results.
+  """
+  @spec sync_flush(buffer :: DataBuffer.t(), timeout()) :: [any()]
   def sync_flush(buffer, timeout \\ 5_000) do
     for partition <- PartitionPool.all(buffer), reduce: [] do
       results -> [Partition.sync_flush(partition, timeout) | results]
     end
   end
 
-  @spec dump(DataBuffer.t(), timeout()) :: :ok
+  @doc """
+  Dumps data from the provided `buffer` - bypassing the flush operation.
+  """
+  @spec dump(buffer :: DataBuffer.t(), timeout()) :: [any()]
   def dump(buffer, timeout \\ 5_000) do
     for partition <- PartitionPool.all(buffer), reduce: [] do
       data -> data ++ Partition.dump(partition, timeout)
     end
   end
 
-  @spec size(DataBuffer.t(), timeout()) :: integer()
+  @doc """
+  Returns the current size of the provided `buffer`.
+  """
+  @spec size(buffer :: DataBuffer.t(), timeout()) :: integer()
   def size(buffer, timeout \\ 5_000) do
     for partition <- PartitionPool.all(buffer), reduce: 0 do
       size -> size + Partition.size(partition, timeout)

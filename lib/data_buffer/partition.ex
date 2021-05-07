@@ -8,6 +8,7 @@ defmodule DataBuffer.Partition do
   require Logger
 
   @type partition :: atom()
+  @type table :: :ets.tid()
 
   @opts_schema %{
     name: [type: :atom, required: true],
@@ -40,17 +41,17 @@ defmodule DataBuffer.Partition do
     end
   end
 
-  @spec flush(partition()) :: :ok
+  @spec flush(partition(), timeout()) :: :ok
   def flush(partition, timeout \\ 5_000) do
     GenServer.call(partition, :flush, timeout)
   end
 
-  @spec sync_flush(partition()) :: :ok
+  @spec sync_flush(partition(), timeout()) :: :ok
   def sync_flush(partition, timeout \\ 5_000) do
     GenServer.call(partition, :sync_flush, timeout)
   end
 
-  @spec dump(partition()) :: :ok
+  @spec dump(partition(), timeout()) :: :ok
   def dump(partition, timeout \\ 5_000) do
     GenServer.call(partition, :dump, timeout)
   end
@@ -60,7 +61,7 @@ defmodule DataBuffer.Partition do
     GenServer.call(partition, {:insert, data}, timeout)
   end
 
-  @spec size(partition()) :: integer()
+  @spec size(partition(), timeout()) :: integer()
   def size(partition, timeout \\ 5_000) do
     GenServer.call(partition, :size, timeout)
   end
@@ -159,7 +160,7 @@ defmodule DataBuffer.Partition do
   end
 
   defp init_table(state) do
-    table = :ets.new(:partition, [:private, :set])
+    table = :ets.new(:partition, [:private, :ordered_set])
     flush_size = state.max_size + Enum.random(0..state.max_size_jitter)
     %{state | table: table, size: 0, flush_size: flush_size}
   end
@@ -188,21 +189,22 @@ defmodule DataBuffer.Partition do
   end
 
   defp do_insert(state, data) do
-    :ets.insert(state.table, {make_ref(), data})
-    %{state | size: state.size + 1}
+    size = state.size + 1
+    :ets.insert(state.table, {size, data})
+    %{state | size: size}
   end
 
   defp do_flush(state) do
     {:ok, flusher} = FlusherPool.start_flusher(state.buffer, state.flush_opts)
-    :ets.give_away(state.table, flusher, :ok)
+    :ets.give_away(state.table, flusher, state.size)
     flusher_timeout_ref = Process.send_after(self(), :flush_timeout, state.flush_timeout)
     state = %{state | flusher: flusher, flusher_timeout_ref: flusher_timeout_ref}
     do_prepare_flush(state)
   end
 
   defp do_sync_flush(state) do
-    data = Flusher.flush(state.table, state.buffer, state.flush_opts)
-    {data, do_prepare_flush(state)}
+    {status, data} = Flusher.flush(state.table, state.buffer, state.flush_opts)
+    {{status, data}, do_prepare_flush(state)}
   end
 
   defp do_prepare_flush(state) do
@@ -214,18 +216,33 @@ defmodule DataBuffer.Partition do
   defp do_await_flush(state) do
     receive do
       :flush_complete -> do_complete_flush(state)
+      :flush_timeout -> do_timeout_flush(state)
     end
   end
 
   defp do_timeout_flush(state) do
-    if is_pid(state.flusher), do: Process.exit(state.flusher, :normal)
-    Logger.error("[DataBuffer] Flush timeout error.")
+    if is_pid(state.flusher), do: Process.exit(state.flusher, :timeout)
+    buffer = state.buffer |> to_string() |> String.replace_leading("Elixir.", "")
+
+    Logger.error("""
+    DataBuffer: flush timeout error for #{buffer}. This means your \
+    handle_flush/2 callback failed to return within its timeout. You can \
+    address this by:
+
+    1. Increasing your buffer flush_timeout.
+    2. Lowering your buffer max_size.
+    3. Improving the performance of your handle_flush/2 callback.
+
+    See DataBuffer.start_link/2 for more information.
+    """)
+
     do_complete_flush(state)
   end
 
   defp do_complete_flush(state) do
-    if is_reference(state.flusher_timeout_ref),
-      do: Process.cancel_timer(state.flusher_timeout_ref)
+    if is_reference(state.flusher_timeout_ref) do
+      Process.cancel_timer(state.flusher_timeout_ref)
+    end
 
     %{state | flusher: nil, flusher_timeout_ref: nil}
   end

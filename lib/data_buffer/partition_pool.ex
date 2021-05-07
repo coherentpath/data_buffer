@@ -28,22 +28,14 @@ defmodule DataBuffer.PartitionPool do
     end
   end
 
-  @spec count(DataBuffer.t()) :: integer()
-  def count(buffer) do
-    :persistent_term.get({buffer, :partitions})
-  end
-
   @spec get(DataBuffer.t()) :: atom()
   def get(buffer) do
-    parition = buffer |> count() |> :random.uniform()
-    partition_name(buffer, parition)
+    buffer |> all() |> Enum.random()
   end
 
   @spec all(DataBuffer.t()) :: [atom()]
   def all(buffer) do
-    for partition <- 1..count(buffer), reduce: [] do
-      partitions -> [partition_name(buffer, partition) | partitions]
-    end
+    :persistent_term.get({buffer, :partitions})
   end
 
   ################################
@@ -61,7 +53,9 @@ defmodule DataBuffer.PartitionPool do
   # Private API
   ################################
 
-  defp partition_pool_name(buffer), do: :"#{buffer}.WorkerPool"
+  defp partition_pool_name(buffer), do: :"#{buffer}.PartitionPool"
+
+  defp partition_name(buffer, partition), do: :"#{buffer}.Partition.#{partition}"
 
   defp validate_opts(opts) do
     KeywordValidator.validate(opts, @opts_schema, strict: false)
@@ -69,6 +63,7 @@ defmodule DataBuffer.PartitionPool do
 
   defp init_config(buffer, pool_opts) do
     partitions = Keyword.fetch!(pool_opts, :partitions)
+    partitions = Enum.map(1..partitions, &partition_name(buffer, &1))
     :persistent_term.put({buffer, :partitions}, partitions)
   end
 
@@ -88,6 +83,4 @@ defmodule DataBuffer.PartitionPool do
 
     [{DataBuffer.Partition, opts} | partitions]
   end
-
-  defp partition_name(buffer, partition), do: :"#{buffer}.Partition.#{partition}"
 end
