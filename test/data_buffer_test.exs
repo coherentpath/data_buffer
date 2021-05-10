@@ -45,6 +45,19 @@ defmodule DataBufferTest do
       assert_receive {:data, ["foo"]}
       assert_receive {:data, ["foo"]}
     end
+
+    test "will insert with equal partition rotation" do
+      start_buffer(partitions: 3)
+      for _ <- 1..6 do
+        DataBuffer.insert(TestBuffer, "foo")
+      end
+
+      info = DataBuffer.info(TestBuffer)
+
+      for partition <- info do
+        assert partition.size == 2
+      end
+    end
   end
 
   describe "flush/2" do
@@ -120,7 +133,7 @@ defmodule DataBufferTest do
              DataBuffer.insert(TestErrorBuffer, "foo")
              DataBuffer.insert(TestErrorBuffer, "foo")
              stop_supervised!(TestErrorBuffer)
-           end) =~ "(RuntimeError) boom"
+           end) =~ "boom"
 
     assert capture_log(fn ->
              start_buffer(
@@ -133,7 +146,7 @@ defmodule DataBufferTest do
              DataBuffer.insert(TestErrorBuffer, "foo")
              DataBuffer.insert(TestErrorBuffer, "foo")
              stop_supervised!(TestErrorBuffer)
-           end) =~ "(exit) \"boom\""
+           end) =~ "boom"
   end
 
   test "will handle an insert when waiting on a timeout" do

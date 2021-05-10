@@ -66,6 +66,11 @@ defmodule DataBuffer.Partition do
     GenServer.call(partition, :size, timeout)
   end
 
+  @spec info(partition(), timeout()) :: integer()
+  def info(partition, timeout \\ 5_000) do
+    GenServer.call(partition, :info, timeout)
+  end
+
   ################################
   # GenServer Callbacks
   ################################
@@ -105,6 +110,11 @@ defmodule DataBuffer.Partition do
 
   def handle_call(:size, _from, state) do
     {:reply, state.size, state}
+  end
+
+  def handle_call(:info, _from, state) do
+    info = do_get_info(state)
+    {:reply, info, state}
   end
 
   @impl GenServer
@@ -196,7 +206,7 @@ defmodule DataBuffer.Partition do
 
   defp do_flush(state) do
     {:ok, flusher} = FlusherPool.start_flusher(state.buffer, state.flush_opts)
-    :ets.give_away(state.table, flusher, state.size)
+    :ets.give_away(state.table, flusher, {state.name, state.size})
     flusher_timeout_ref = Process.send_after(self(), :flush_timeout, state.flush_timeout)
     state = %{state | flusher: flusher, flusher_timeout_ref: flusher_timeout_ref}
     do_prepare_flush(state)
@@ -249,5 +259,16 @@ defmodule DataBuffer.Partition do
 
   defp do_dump_table(state) do
     :ets.tab2list(state.table)
+  end
+
+  defp do_get_info(state) do
+    %{
+      size: state.size,
+      name: state.name,
+      flush_size: state.flush_size,
+      flush_interval: state.flush_interval,
+      flush_jitter: state.flush_jitter,
+      flush_timeout: state.flush_timeout
+    }
   end
 end
