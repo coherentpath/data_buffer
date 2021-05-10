@@ -29,12 +29,9 @@ defmodule DataBuffer do
   @spec insert(buffer :: DataBuffer.t(), data :: any(), timeout()) :: :ok
   def insert(buffer, data, timeout \\ 5_000) do
     Telemetry.span(:insert, %{buffer: buffer}, fn ->
-      result =
-        buffer
-        |> PartitionPool.get()
-        |> Partition.insert(data, timeout)
-
-      {result, %{buffer: buffer}}
+      partition = PartitionPool.next(buffer)
+      result = Partition.insert(partition, data, timeout)
+      {result, %{buffer: buffer, partition: partition}}
     end)
   end
 
@@ -77,6 +74,16 @@ defmodule DataBuffer do
   def size(buffer, timeout \\ 5_000) do
     for partition <- PartitionPool.all(buffer), reduce: 0 do
       size -> size + Partition.size(partition, timeout)
+    end
+  end
+
+  @doc """
+  Returns the details of each partition within the provided `buffer`.
+  """
+  @spec info(buffer :: DataBuffer.t(), timeout()) :: [map()]
+  def info(buffer, timeout \\ 5_000) do
+    for partition <- PartitionPool.all(buffer) do
+      Partition.info(partition, timeout)
     end
   end
 

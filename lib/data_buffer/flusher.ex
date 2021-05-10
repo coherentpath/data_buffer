@@ -42,18 +42,18 @@ defmodule DataBuffer.Flusher do
   end
 
   @impl GenServer
-  def handle_info({:"ETS-TRANSFER", table, from, size}, {buffer, opts} = state) do
-    try do
-      Telemetry.span(:flush, %{buffer: buffer, size: size}, fn ->
-        flush(table, buffer, opts)
-        {:ok, %{buffer: buffer}}
-      end)
-    catch
-      kind, reason -> Logger.error(Exception.format(kind, reason, __STACKTRACE__))
-    end
+  def handle_info({:"ETS-TRANSFER", table, from, {partition, size}}, {buffer, opts} = state) do
+    Telemetry.span(:flush, %{buffer: buffer, partition: partition, size: size}, fn ->
+      flush(table, buffer, opts)
+      {:ok, %{buffer: buffer, partition: partition}}
+    end)
 
     send(from, :flush_complete)
     {:stop, :normal, state}
+  catch
+    _kind, reason ->
+      send(from, :flush_complete)
+      reraise(reason, __STACKTRACE__)
   end
 
   ################################
