@@ -213,8 +213,8 @@ defmodule DataBuffer.Partition do
   end
 
   defp do_sync_flush(state) do
-    {status, data} = Flusher.flush(state.table, state.buffer, state.flush_opts)
-    {{status, data}, do_prepare_flush(state)}
+    data = Flusher.flush(state.table, state.buffer, state.flush_opts)
+    {data, do_prepare_flush(state)}
   end
 
   defp do_prepare_flush(state) do

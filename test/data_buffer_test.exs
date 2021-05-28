@@ -48,6 +48,7 @@ defmodule DataBufferTest do
 
     test "will insert with equal partition rotation" do
       start_buffer(partitions: 3)
+
       for _ <- 1..6 do
         DataBuffer.insert(TestBuffer, "foo")
       end
@@ -97,6 +98,16 @@ defmodule DataBufferTest do
       for x <- 0..500 do
         assert Enum.at(data, x) == x
       end
+    end
+  end
+
+  describe "sync_flush/2" do
+    test "flushes data from the buffer" do
+      start_buffer()
+
+      DataBuffer.insert(TestBuffer, "foo")
+
+      assert [{:data, ["foo"]}, {:data, []}] = DataBuffer.sync_flush(TestBuffer)
     end
   end
 
