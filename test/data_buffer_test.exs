@@ -132,6 +132,14 @@ defmodule DataBufferTest do
     assert_receive {:data, ["foo"]}, 150
   end
 
+  test "will not perform a scheduled flush from a different schedule reference" do
+    start_buffer(partitions: 1, flush_interval: 300)
+    DataBuffer.insert(TestBuffer, "foo")
+    [partition] = DataBuffer.info(TestBuffer)
+    send(partition.name, {:flush_schedule, make_ref()})
+    refute_receive {:data, ["foo"]}, 150
+  end
+
   test "handles flush attempts that raise an exception or exit" do
     assert capture_log(fn ->
              start_buffer(
