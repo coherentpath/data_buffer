@@ -101,7 +101,7 @@ defmodule DataBuffer do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
-  defmacro __using__(opts) do
+  defmacro __using__(_opts) do
     quote location: :keep do
       @behaviour DataBuffer
 
@@ -114,12 +114,11 @@ defmodule DataBuffer do
       end
 
       def child_spec(opts) do
-        default = %{
+        %{
           id: __MODULE__,
-          start: {__MODULE__, :start_link, [opts]}
+          start: {__MODULE__, :start_link, [opts]},
+          type: :supervisor
         }
-
-        Supervisor.child_spec(default, unquote(Macro.escape(opts)))
       end
 
       defoverridable(child_spec: 1)
