@@ -34,16 +34,16 @@ defmodule DataBuffer.Partition do
   @type partition :: atom()
   @type table :: :ets.tid()
 
-  @opts_schema %{
-    name: [type: :atom, required: true],
-    buffer: [type: :module, required: true],
-    max_size: [type: :integer, default: 5_000, required: true],
-    max_size_jitter: [type: :integer, default: 0, required: true],
-    flush_interval: [type: :integer, default: 10_000, required: true],
-    flush_jitter: [type: :integer, default: 2_000, required: true],
-    flush_meta: [type: :any, required: false],
-    flush_timeout: [type: :integer, default: 60_000, required: true]
-  }
+  @opts_schema KeywordValidator.schema!(
+                 name: [is: :atom, required: true],
+                 buffer: [is: :mod, required: true],
+                 max_size: [is: :integer, default: 5_000, required: true],
+                 max_size_jitter: [is: :integer, default: 0, required: true],
+                 flush_interval: [is: :integer, default: 10_000, required: true],
+                 flush_jitter: [is: :integer, default: 2_000, required: true],
+                 flush_meta: [is: :any, required: false],
+                 flush_timeout: [is: :timeout, default: 60_000, required: true]
+               )
 
   ################################
   # Public API

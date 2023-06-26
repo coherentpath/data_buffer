@@ -54,7 +54,7 @@ defmodule DataBuffer.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:keyword_validator, "~> 1.0"},
+      {:keyword_validator, "~> 2.0"},
       {:telemetry, "~> 0.4"},
       {:benchee, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false}
