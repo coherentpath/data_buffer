@@ -5,9 +5,7 @@ defmodule DataBuffer.PartitionPool do
 
   @atomics_ix 1
   @counter_max 2_000_000_000
-  @opts_schema %{
-    partitions: [type: :integer, default: 1, required: true]
-  }
+  @opts_schema KeywordValidator.schema!(partitions: [is: :integer, default: 1, required: true])
 
   ################################
   # Public API
