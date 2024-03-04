@@ -7,7 +7,7 @@ defmodule DataBuffer.MixProject do
     [
       app: :data_buffer,
       version: @version,
-      elixir: "~> 1.9",
+      elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),

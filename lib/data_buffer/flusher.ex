@@ -27,9 +27,9 @@ defmodule DataBuffer.Flusher do
 
   @spec flush(DataBuffer.Partition.table(), atom(), keyword()) :: {:ok, any()} | {:error, any()}
   def flush(table, buffer, opts \\ []) do
-    meta = Keyword.get(opts, :meta)
+    opts = Keyword.take(opts, [:meta, :size])
     data = handle_data(table)
-    buffer.handle_flush(data, meta)
+    buffer.handle_flush(data, opts)
   end
 
   ################################
@@ -47,6 +47,7 @@ defmodule DataBuffer.Flusher do
         {buffer, opts} = state
       ) do
     Telemetry.span(:flush, %{buffer: buffer, partition: partition, size: size}, fn ->
+      opts = Keyword.put(opts, :size, size)
       flush(table, buffer, opts)
       {:ok, %{buffer: buffer, partition: partition}}
     end)

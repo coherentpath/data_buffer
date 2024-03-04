@@ -85,6 +85,11 @@ defmodule DataBuffer.Partition do
     GenServer.call(partition, {:insert, data}, timeout)
   end
 
+  @spec insert_batch(partition(), Enumerable.t(), timeout()) :: :ok
+  def insert_batch(partition, data, timeout \\ 5_000) do
+    GenServer.call(partition, {:insert_batch, data}, timeout)
+  end
+
   @spec size(partition(), timeout()) :: integer()
   def size(partition, timeout \\ 5_000) do
     GenServer.call(partition, :size, timeout)
@@ -109,6 +114,11 @@ defmodule DataBuffer.Partition do
   @impl GenServer
   def handle_call({:insert, data}, _from, %State{} = state) do
     state = do_insert(state, data)
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:insert_batch, data}, _from, %State{} = state) do
+    state = do_insert_batch(state, data)
     {:reply, :ok, state}
   end
 
@@ -236,6 +246,30 @@ defmodule DataBuffer.Partition do
     %{state | size: size}
   end
 
+  defp do_insert_batch(%State{flusher: flusher, size: size, flush_size: flush_size} = state, data)
+       when is_pid(flusher) and is_full(size, flush_size) do
+    state
+    |> do_await_flush()
+    |> do_insert_batch(data)
+  end
+
+  defp do_insert_batch(%State{size: size, flush_size: flush_size} = state, data)
+       when is_full(size, flush_size) do
+    state
+    |> do_flush()
+    |> do_insert_batch(data)
+  end
+
+  defp do_insert_batch(%State{size: size, table: table} = state, data) do
+    {rows, size} =
+      Enum.map_reduce(data, size, fn data, size ->
+        {{size + 1, data}, size + 1}
+      end)
+
+    :ets.insert(table, rows)
+    %{state | size: size}
+  end
+
   defp do_scheduled_flush(state, flush_schedule_ref) do
     if state.flush_schedule_ref == flush_schedule_ref do
       do_flush(state)
@@ -266,7 +300,8 @@ defmodule DataBuffer.Partition do
   end
 
   defp do_sync_flush(state) do
-    data = Flusher.flush(state.table, state.buffer, state.flush_opts)
+    opts = Keyword.put(state.flush_opts, :size, state.size)
+    data = Flusher.flush(state.table, state.buffer, opts)
     {data, do_prepare_flush(state)}
   end
 
