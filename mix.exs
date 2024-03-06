@@ -1,7 +1,7 @@
 defmodule DataBuffer.MixProject do
   use Mix.Project
 
-  @version "0.6.0"
+  @version "0.7.1"
 
   def project do
     [
@@ -92,7 +92,7 @@ defmodule DataBuffer.MixProject do
   defp deps do
     [
       {:keyword_validator, "~> 2.0"},
-      {:telemetry, "~> 0.4"},
+      {:telemetry, "~> 1.2.1"},
       {:benchee, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:credo, "~> 1.7.0", only: [:dev, :test], runtime: false},

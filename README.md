@@ -10,7 +10,7 @@ by adding `data_buffer` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:data_buffer, "~> 0.1.0"}
+    {:data_buffer, "~> 0.7.1"}
   ]
 end
 ```
