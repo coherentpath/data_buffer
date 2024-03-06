@@ -1,4 +1,6 @@
 defmodule TestBuffer do
+  @moduledoc false
+
   use DataBuffer
 
   def start_link(opts) do
@@ -20,6 +22,8 @@ defmodule TestBuffer do
 end
 
 defmodule TestErrorBuffer do
+  @moduledoc false
+
   use DataBuffer
 
   def start_link(opts) do

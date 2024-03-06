@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    name: Release package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Elixir and Erlang versions
+        uses: erlef/setup-beam@v1
+        id: setup-elixir
+        with:
+          version-type: strict
+          version-file: .tool-versions
+
+      - name: Restore the cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+            dialyzer
+          key: |
+            ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-mixlockhash-
+
+      - name: Setup project
+        run: |
+          mix setup
+
+      - name: Publish package
+        run: |
+          mix hex.publish --organization movableink --replace --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
