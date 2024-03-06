@@ -23,32 +23,17 @@ jobs:
           version-type: strict
           version-file: .tool-versions
 
-      - name: Restore the deps cache
+      - name: Restore the cache
         uses: actions/cache@v3
-        id: deps-cache
         with:
-          path: deps
-          key: ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-deps-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          path: |
+            deps
+            _build
+            dialyzer
+          key: |
+            ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
           restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-deps-
-
-      - name: Restore the _build cache
-        uses: actions/cache@v3
-        id: build-cache
-        with:
-          path: _build
-          key: ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-build-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-          restore-keys: |
-              ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-build-
-
-      - name: Restore the dialyzer cache
-        uses: actions/cache@v3
-        id: dialyzer-cache
-        with:
-          path: dialyzer
-          key: ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-dialyzer
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-dialyzer
+            ${{ runner.os }}-${{ steps.setup-elixir.outputs.elixir-version }}-${{ steps.setup-elixir.outputs.otp-version }}-mixlockhash-
 
       - name: Run CI
         run: |
