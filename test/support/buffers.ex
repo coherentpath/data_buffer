@@ -1,4 +1,6 @@
 defmodule TestBuffer do
+  @moduledoc false
+
   use DataBuffer
 
   def start_link(opts) do
@@ -6,17 +8,22 @@ defmodule TestBuffer do
   end
 
   @impl DataBuffer
-  def handle_flush(data_stream, meta) do
+  def handle_flush(data_stream, opts) do
+    meta = Keyword.get(opts, :meta)
+    size = Keyword.get(opts, :size)
+
     if Map.has_key?(meta, :sleep) do
       :timer.sleep(meta.sleep)
     end
 
     data = Enum.into(data_stream, [])
-    send(meta.pid, {:data, data})
+    send(meta.pid, {:data, data, size})
   end
 end
 
 defmodule TestErrorBuffer do
+  @moduledoc false
+
   use DataBuffer
 
   def start_link(opts) do
@@ -24,11 +31,14 @@ defmodule TestErrorBuffer do
   end
 
   @impl DataBuffer
-  def handle_flush(_data_stream, %{kind: :error}) do
-    raise RuntimeError, "boom"
-  end
-
-  def handle_flush(_data_stream, %{kind: :exit}) do
-    exit("boom")
+  def handle_flush(_data_stream, opts) do
+    opts
+    |> Keyword.get(:meta, %{})
+    |> Map.get(:kind)
+    |> case do
+      :error -> raise RuntimeError, "boom"
+      :exit -> exit("boom")
+      _ -> :ok
+    end
   end
 end

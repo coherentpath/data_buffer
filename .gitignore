@@ -25,4 +25,7 @@ data_buffer-*.tar
 # Ignore Elixir Language Server files
 /.elixir_ls
 
+# Dialyzer generated PLT files
+/dialyzer
+
 /bench

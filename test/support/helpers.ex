@@ -1,4 +1,8 @@
 defmodule DataBuffer.Helpers do
+  @moduledoc """
+  Helper functions for `DataBuffer` unit tests.
+  """
+
   import ExUnit.Callbacks, only: [start_supervised: 1]
 
   @partitions 2

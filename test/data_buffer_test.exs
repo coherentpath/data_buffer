@@ -31,8 +31,8 @@ defmodule DataBufferTest do
       DataBuffer.insert(TestBuffer, "foo")
       DataBuffer.insert(TestBuffer, "foo")
       DataBuffer.insert(TestBuffer, "foo")
-      assert_receive {:data, ["foo"]}
-      assert_receive {:data, ["foo"]}
+      assert_receive {:data, ["foo"], _}
+      assert_receive {:data, ["foo"], _}
     end
 
     test "will flush after hitting max_size + max_size_jitter" do
@@ -42,8 +42,8 @@ defmodule DataBufferTest do
       DataBuffer.insert(TestBuffer, "foo")
       DataBuffer.insert(TestBuffer, "foo")
       DataBuffer.insert(TestBuffer, "foo")
-      assert_receive {:data, ["foo"]}
-      assert_receive {:data, ["foo"]}
+      assert_receive {:data, ["foo"], _}
+      assert_receive {:data, ["foo"], _}
     end
 
     test "will insert with equal partition rotation" do
@@ -61,6 +61,16 @@ defmodule DataBufferTest do
     end
   end
 
+  describe "insert_batch/2" do
+    test "will insert a batch of data into the buffer" do
+      start_buffer()
+
+      assert [] = DataBuffer.dump(TestBuffer)
+      DataBuffer.insert(TestBuffer, ["foo", "bar", "baz"])
+      assert [{_, ["foo", "bar", "baz"]}] = DataBuffer.dump(TestBuffer)
+    end
+  end
+
   describe "flush/2" do
     test "flushes data from the buffer" do
       start_buffer()
@@ -68,7 +78,7 @@ defmodule DataBufferTest do
       DataBuffer.insert(TestBuffer, "foo")
       DataBuffer.flush(TestBuffer)
 
-      assert_receive {:data, ["foo"]}
+      assert_receive {:data, ["foo"], _}
     end
 
     test "flushes duplicate data from the buffer" do
@@ -93,11 +103,21 @@ defmodule DataBufferTest do
 
       DataBuffer.flush(TestBuffer)
 
-      assert_receive {:data, data}
+      assert_receive {:data, data, _}
 
       for x <- 0..500 do
         assert Enum.at(data, x) == x
       end
+    end
+
+    test "buffer size is included in flush opts" do
+      start_buffer()
+
+      data = ["foo", "bar", "baz"]
+      DataBuffer.insert_batch(TestBuffer, data)
+      DataBuffer.flush(TestBuffer)
+
+      assert_receive {:data, ^data, 3}
     end
   end
 
@@ -107,7 +127,7 @@ defmodule DataBufferTest do
 
       DataBuffer.insert(TestBuffer, "foo")
 
-      assert [{:data, ["foo"]}, {:data, []}] = DataBuffer.sync_flush(TestBuffer)
+      assert [{:data, ["foo"], _}, {:data, [], _}] = DataBuffer.sync_flush(TestBuffer)
     end
   end
 
@@ -129,7 +149,7 @@ defmodule DataBufferTest do
   test "flushes data after flush_interval and flush_jitter" do
     start_buffer(flush_interval: 50, flush_jitter: 1)
     DataBuffer.insert(TestBuffer, "foo")
-    assert_receive {:data, ["foo"]}, 150
+    assert_receive {:data, ["foo"], _}, 150
   end
 
   test "will not perform a scheduled flush from a different schedule reference" do
@@ -186,7 +206,7 @@ defmodule DataBufferTest do
   defp receive_all(partitions \\ partitions()) do
     for _ <- 1..partitions, reduce: [] do
       data ->
-        assert_receive {:data, new_data}
+        assert_receive {:data, new_data, _}
         data ++ new_data
     end
   end

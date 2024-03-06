@@ -36,6 +36,18 @@ defmodule DataBuffer do
   end
 
   @doc """
+  Inserts all of the provided `data` into the provided `buffer` at once.
+  """
+  @spec insert_batch(buffer :: DataBuffer.t(), data :: Enumerable.t(), timeout()) :: :ok
+  def insert_batch(buffer, data, timeout \\ 5_000) do
+    Telemetry.span(:insert, %{buffer: buffer}, fn ->
+      partition = PartitionPool.next(buffer)
+      result = Partition.insert_batch(partition, data, timeout)
+      {result, %{buffer: buffer, partition: partition}}
+    end)
+  end
+
+  @doc """
   Performs a flush operation on the provided `buffer`.
   """
   @spec flush(buffer :: DataBuffer.t(), timeout()) :: :ok

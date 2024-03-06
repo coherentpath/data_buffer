@@ -61,7 +61,7 @@ defmodule DataBuffer.Telemetry do
   """
 
   @doc false
-  @spec span(atom(), map(), (() -> {any, map})) :: any()
+  @spec span(atom(), map(), (-> {any, map})) :: any()
   def span(name, meta, fun) do
     :telemetry.span([:data_buffer, name], meta, fun)
   end
