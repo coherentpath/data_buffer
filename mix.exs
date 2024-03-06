@@ -92,7 +92,7 @@ defmodule DataBuffer.MixProject do
   defp deps do
     [
       {:keyword_validator, "~> 2.0"},
-      {:telemetry, "~> 1.2.1"},
+      {:telemetry, "~> 1.2"},
       {:benchee, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
       {:credo, "~> 1.7.0", only: [:dev, :test], runtime: false},
