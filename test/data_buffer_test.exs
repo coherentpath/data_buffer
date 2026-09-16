@@ -203,6 +203,43 @@ defmodule DataBufferTest do
            end) =~ "DataBuffer: flush timeout error"
   end
 
+  test "flushes data on shutdown" do
+    start_buffer(partitions: 1)
+    DataBuffer.insert(TestBuffer, "foo")
+    stop_supervised!(TestBuffer)
+    assert_receive {:data, ["foo"], _}
+  end
+
+  test "configures default and custom shutdown_timeout on partition" do
+    start_buffer(partitions: 1)
+    [partition] = DataBuffer.info(TestBuffer)
+    assert partition.shutdown_timeout == 5_000
+
+    spec =
+      DataBuffer.Partition.child_spec(
+        name: :test_part,
+        buffer: TestBuffer,
+        shutdown_timeout: 12_345
+      )
+
+    assert spec.shutdown == 12_345
+
+    default_spec = DataBuffer.Partition.child_spec(name: :test_part, buffer: TestBuffer)
+    assert default_spec.shutdown == 5_000
+
+    stop_supervised!(TestBuffer)
+
+    start_buffer(partitions: 1, shutdown_timeout: 10_000)
+    [partition] = DataBuffer.info(TestBuffer)
+    assert partition.shutdown_timeout == 10_000
+    stop_supervised!(TestBuffer)
+
+    start_buffer(partitions: 1, shutdown_timeout: :infinity)
+    [partition] = DataBuffer.info(TestBuffer)
+    assert partition.shutdown_timeout == :infinity
+    stop_supervised!(TestBuffer)
+  end
+
   defp receive_all(partitions \\ partitions()) do
     for _ <- 1..partitions, reduce: [] do
       data ->

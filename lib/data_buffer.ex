@@ -64,6 +64,7 @@ defmodule DataBuffer do
   - `:flush_jitter` - Random jitter added to flush_interval (default: 2000)
   - `:flush_timeout` - Timeout in ms for flush operations (default: 60000)
   - `:flush_meta` - Metadata passed to handle_flush callback (optional)
+  - `:shutdown_timeout` - Timeout in ms or `:infinity` for shutdown flush operations (default: 5000)
 
   ## Telemetry Events
 
@@ -297,6 +298,7 @@ defmodule DataBuffer do
   - `:flush_interval` - Time interval for automatic flush
   - `:flush_jitter` - Random jitter for flush interval
   - `:flush_timeout` - Timeout for flush operations
+  - `:shutdown_timeout` - Timeout for shutdown flush operations
 
   ## Examples
 
