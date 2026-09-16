@@ -19,6 +19,7 @@ defmodule DataBuffer.Partition do
       :flush_interval,
       :flush_jitter,
       :flush_timeout,
+      :shutdown_timeout,
       :flush_opts,
       :flush_complete_ref,
       :flush_schedule_ref,
@@ -42,7 +43,8 @@ defmodule DataBuffer.Partition do
                  flush_interval: [is: :integer, default: 10_000, required: true],
                  flush_jitter: [is: :integer, default: 2_000, required: true],
                  flush_meta: [is: :any, required: false],
-                 flush_timeout: [is: :timeout, default: 60_000, required: true]
+                 flush_timeout: [is: :timeout, default: 60_000, required: true],
+                 shutdown_timeout: [is: :timeout, default: 5_000, required: true]
                )
 
   ################################
@@ -53,7 +55,8 @@ defmodule DataBuffer.Partition do
   def child_spec(opts) do
     %{
       id: Keyword.fetch!(opts, :name),
-      start: {__MODULE__, :start_link, [opts]}
+      start: {__MODULE__, :start_link, [opts]},
+      shutdown: Keyword.get(opts, :shutdown_timeout, 5_000)
     }
   end
 
@@ -192,6 +195,7 @@ defmodule DataBuffer.Partition do
       flush_interval: Keyword.get(opts, :flush_interval),
       flush_jitter: Keyword.get(opts, :flush_jitter),
       flush_timeout: Keyword.get(opts, :flush_timeout),
+      shutdown_timeout: Keyword.get(opts, :shutdown_timeout),
       flush_opts: [
         meta: Keyword.get(opts, :flush_meta)
       ],
@@ -369,6 +373,7 @@ defmodule DataBuffer.Partition do
       flush_interval: state.flush_interval,
       flush_jitter: state.flush_jitter,
       flush_timeout: state.flush_timeout,
+      shutdown_timeout: state.shutdown_timeout,
       pid: self()
     }
   end
