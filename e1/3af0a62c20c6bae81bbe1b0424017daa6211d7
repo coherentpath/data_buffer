@@ -1,0 +1,30 @@
+lib/data_buffer.ex
+  s_badd76fe4ddfd0::t_b80f07016a2efd 301
+  s_badd76fe4ddfd0::t_737758af589b03 67
+lib/data_buffer/partition.ex
+  s_badd76fe4ddfd0::t_647b41f19ee714 198
+  s_badd76fe4ddfd0::t_8c991faf34d2af 22
+  s_badd76fe4ddfd0::t_00726d217a9c1f 376
+  s_badd76fe4ddfd0::t_cfd45c7721b5da 46-47,58-59
+test/data_buffer_test.exs
+  s_badd76fe4ddfd0::t_b5802a6ec988fa 206-217,225,229-235,241-242
+  s_badd76fe4ddfd0::t_06224082c40397 218-224
+  s_badd76fe4ddfd0::t_f99f0f5f1c72d5 226-228
+  s_badd76fe4ddfd0::t_4a02f12c78b9c0 236-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e13af0a62c20c6bae81bbe1b0424017daa6211d7",
+  "prompts": {},
+  "sessions": {
+    "s_badd76fe4ddfd0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f5533d59effe1LUJ5wyHzChqmM",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "nsweeting <nsweeting@gmail.com>"
+    }
+  }
+}

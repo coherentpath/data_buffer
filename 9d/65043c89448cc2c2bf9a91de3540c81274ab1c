@@ -1,0 +1,14 @@
+.tool-versions
+  h_2021376deb568c 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "9d65043c89448cc2c2bf9a91de3540c81274ab1c",
+  "prompts": {},
+  "humans": {
+    "h_2021376deb568c": {
+      "author": "nsweeting <nsweeting@gmail.com>"
+    }
+  }
+}
