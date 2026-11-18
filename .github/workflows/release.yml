@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Elixir and Erlang versions
         uses: erlef/setup-beam@v1
@@ -20,7 +20,7 @@ jobs:
           version-file: .tool-versions
 
       - name: Restore the cache
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             deps
